@@ -468,11 +468,11 @@ app.post("/api/notifications/test", authenticateToken, async (req, res) => {
       .eq("user_id", req.user.id)
       .single();
 
-    if (videoError || !videoData) {
-      return res
-        .status(404)
-        .json({ error: "Video not found or you do not have permission" });
-    }
+    // if (videoError || !videoData) {
+    //   return res
+    //     .status(404)
+    //     .json({ error: "Video not found or you do not have permission" });
+    // }
 
     for (const recipient of recipients) {
       switch (type) {
@@ -549,7 +549,7 @@ async function sendEmailNotification({
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
-      secure: true,
+      secure: false,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
