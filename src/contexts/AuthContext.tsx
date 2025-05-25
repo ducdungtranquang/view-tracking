@@ -4,7 +4,7 @@ import { API_URL } from '../config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any;
+  user: unknown;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;

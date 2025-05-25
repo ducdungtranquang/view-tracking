@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
-import { Youtube, Mail, MessageSquare, Phone, AlertTriangle, Send } from 'lucide-react';
-import toast from 'react-hot-toast';
-import axios from 'axios';
-import { API_URL } from '../config';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
+import {
+  Youtube,
+  Mail,
+  MessageSquare,
+  Phone,
+  AlertTriangle,
+  Send,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import axios from "axios";
+import { API_URL } from "../config";
 
 interface FormData {
   videoUrl: string;
@@ -23,67 +30,78 @@ const AddVideo = () => {
     title: string;
     thumbnail: string;
   } | null>(null);
-  
-  const { 
-    register, 
-    handleSubmit, 
+
+  const {
+    register,
+    handleSubmit,
     control,
     watch,
     formState: { errors },
-    setError
+    setError,
   } = useForm<FormData>({
     defaultValues: {
-      videoUrl: '',
+      videoUrl: "",
       warningThreshold: 50,
       emergencyThreshold: 100,
-      emails: [{ value: '' }],
-      zaloIds: [{ value: '' }],
-      phoneNumbers: [{ value: '' }]
-    }
+      emails: [{ value: "" }],
+      zaloIds: [{ value: "" }],
+      phoneNumbers: [{ value: "" }],
+    },
   });
-  
-  const videoUrl = watch('videoUrl');
-  
+
+  const videoUrl = watch("videoUrl");
+
   // Function to extract video ID from YouTube URL
   const extractVideoId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    const shortRegex =
+      /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
+    const longRegex =
+      /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]{11}).*/;
+
+    let match = url.match(shortRegex);
+    if (match && match[1]) return match[1];
+
+    match = url.match(longRegex);
+    if (match && match[1]) return match[1];
+
+    return null;
   };
-  
+
   const fetchVideoDetails = async () => {
     if (!videoUrl) return;
-    
+
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
-      setError('videoUrl', {
-        type: 'manual',
-        message: 'Invalid YouTube URL'
+      setError("videoUrl", {
+        type: "manual",
+        message: "Invalid YouTube URL",
       });
       return;
     }
-    
+
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/videos/preview?id=${videoId}`);
+      const response = await axios.get(
+        `${API_URL}/videos/preview?id=${videoId}`
+      );
       setVideoPreview(response.data);
     } catch (error) {
-      console.error('Error fetching video details:', error);
-      toast.error('Could not fetch video details');
+      console.error("Error fetching video details:", error);
+      toast.error("Could not fetch video details");
     } finally {
       setLoading(false);
     }
   };
-  
+
   const onSubmit = async (data: FormData) => {
     if (!videoPreview) {
-      toast.error('Please fetch video details first');
+      toast.error("Please fetch video details first");
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Format the data as expected by the API
       const formattedData = {
         videoId: videoPreview.id,
@@ -92,48 +110,61 @@ const AddVideo = () => {
         warningThreshold: data.warningThreshold,
         emergencyThreshold: data.emergencyThreshold,
         notifications: {
-          emails: data.emails.filter(email => email.value).map(email => email.value),
-          zaloIds: data.zaloIds.filter(zalo => zalo.value).map(zalo => zalo.value),
-          phoneNumbers: data.phoneNumbers.filter(phone => phone.value).map(phone => phone.value)
-        }
+          emails: data.emails
+            .filter((email) => email.value)
+            .map((email) => email.value),
+          zaloIds: data.zaloIds
+            .filter((zalo) => zalo.value)
+            .map((zalo) => zalo.value),
+          phoneNumbers: data.phoneNumbers
+            .filter((phone) => phone.value)
+            .map((phone) => phone.value),
+        },
       };
-      
+
       await axios.post(`${API_URL}/videos`, formattedData);
-      
-      toast.success('Video tracking started successfully');
-      navigate('/');
+
+      toast.success("Video tracking started successfully");
+      navigate("/");
     } catch (error) {
-      console.error('Error adding video:', error);
-      toast.error('Failed to start video tracking');
+      console.error("Error adding video:", error);
+      toast.error("Failed to start video tracking");
     } finally {
       setLoading(false);
     }
   };
-  
-  const testNotification = async (type: 'email' | 'zalo' | 'sms') => {
-    const recipients = type === 'email' 
-      ? watch('emails').filter(e => e.value).map(e => e.value)
-      : type === 'zalo'
-        ? watch('zaloIds').filter(z => z.value).map(z => z.value)
-        : watch('phoneNumbers').filter(p => p.value).map(p => p.value);
-    
+
+  const testNotification = async (type: "email" | "zalo" | "sms") => {
+    const recipients =
+      type === "email"
+        ? watch("emails")
+            .filter((e) => e.value)
+            .map((e) => e.value)
+        : type === "zalo"
+        ? watch("zaloIds")
+            .filter((z) => z.value)
+            .map((z) => z.value)
+        : watch("phoneNumbers")
+            .filter((p) => p.value)
+            .map((p) => p.value);
+
     if (recipients.length === 0) {
       toast.error(`No ${type} recipients specified`);
       return;
     }
-    
+
     try {
       setLoading(true);
       await axios.post(`${API_URL}/notifications/test`, {
         type,
         recipients,
         videoInfo: videoPreview || {
-          title: 'Test Video',
-          id: 'test123',
-          viewsPerMinute: 150
-        }
+          title: "Test Video",
+          id: "test123",
+          viewsPerMinute: 150,
+        },
       });
-      
+
       toast.success(`Test ${type} notification sent successfully`);
     } catch (error) {
       console.error(`Error sending test ${type}:`, error);
@@ -142,7 +173,7 @@ const AddVideo = () => {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
@@ -151,7 +182,10 @@ const AddVideo = () => {
             <h3 className="text-lg font-semibold mb-4">Video Information</h3>
             <div className="space-y-4">
               <div>
-                <label htmlFor="videoUrl" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="videoUrl"
+                  className="block text-sm font-medium mb-1"
+                >
                   YouTube Video URL
                 </label>
                 <div className="flex space-x-2">
@@ -163,7 +197,9 @@ const AddVideo = () => {
                       id="videoUrl"
                       type="text"
                       placeholder="https://www.youtube.com/watch?v=..."
-                      {...register('videoUrl', { required: 'Video URL is required' })}
+                      {...register("videoUrl", {
+                        required: "Video URL is required",
+                      })}
                       className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -177,31 +213,38 @@ const AddVideo = () => {
                   </button>
                 </div>
                 {errors.videoUrl && (
-                  <p className="mt-1 text-sm text-red-500">{errors.videoUrl.message}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.videoUrl.message}
+                  </p>
                 )}
               </div>
-              
+
               {videoPreview && (
                 <div className="bg-gray-700 rounded-lg p-4 flex items-start space-x-4">
-                  <img 
-                    src={videoPreview.thumbnail} 
-                    alt={videoPreview.title} 
+                  <img
+                    src={videoPreview.thumbnail}
+                    alt={videoPreview.title}
                     className="w-24 h-auto rounded"
                   />
                   <div>
                     <h4 className="font-medium">{videoPreview.title}</h4>
-                    <p className="text-sm text-gray-400 mt-1">ID: {videoPreview.id}</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      ID: {videoPreview.id}
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           </section>
-          
+
           <section>
             <h3 className="text-lg font-semibold mb-4">Alert Thresholds</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="warningThreshold" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="warningThreshold"
+                  className="block text-sm font-medium mb-1"
+                >
                   Warning Threshold (views/minute)
                 </label>
                 <div className="relative">
@@ -212,21 +255,26 @@ const AddVideo = () => {
                     id="warningThreshold"
                     type="number"
                     min="1"
-                    {...register('warningThreshold', { 
-                      required: 'Warning threshold is required',
-                      min: { value: 1, message: 'Must be at least 1' },
-                      valueAsNumber: true
+                    {...register("warningThreshold", {
+                      required: "Warning threshold is required",
+                      min: { value: 1, message: "Must be at least 1" },
+                      valueAsNumber: true,
                     })}
                     className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-yellow-500 focus:border-yellow-500"
                   />
                 </div>
                 {errors.warningThreshold && (
-                  <p className="mt-1 text-sm text-red-500">{errors.warningThreshold.message}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.warningThreshold.message}
+                  </p>
                 )}
               </div>
-              
+
               <div>
-                <label htmlFor="emergencyThreshold" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="emergencyThreshold"
+                  className="block text-sm font-medium mb-1"
+                >
                   Emergency Threshold (views/minute)
                 </label>
                 <div className="relative">
@@ -237,28 +285,35 @@ const AddVideo = () => {
                     id="emergencyThreshold"
                     type="number"
                     min="1"
-                    {...register('emergencyThreshold', { 
-                      required: 'Emergency threshold is required',
-                      min: { value: 1, message: 'Must be at least 1' },
-                      validate: value => {
-                        const warning = watch('warningThreshold');
-                        return value > warning || 'Must be greater than warning threshold';
+                    {...register("emergencyThreshold", {
+                      required: "Emergency threshold is required",
+                      min: { value: 1, message: "Must be at least 1" },
+                      validate: (value) => {
+                        const warning = watch("warningThreshold");
+                        return (
+                          value > warning ||
+                          "Must be greater than warning threshold"
+                        );
                       },
-                      valueAsNumber: true
+                      valueAsNumber: true,
                     })}
                     className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-red-500 focus:border-red-500"
                   />
                 </div>
                 {errors.emergencyThreshold && (
-                  <p className="mt-1 text-sm text-red-500">{errors.emergencyThreshold.message}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.emergencyThreshold.message}
+                  </p>
                 )}
               </div>
             </div>
           </section>
-          
+
           <section>
-            <h3 className="text-lg font-semibold mb-4">Notification Recipients</h3>
-            
+            <h3 className="text-lg font-semibold mb-4">
+              Notification Recipients
+            </h3>
+
             <div className="space-y-6">
               {/* Email Recipients */}
               <div>
@@ -268,7 +323,7 @@ const AddVideo = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => testNotification('email')}
+                    onClick={() => testNotification("email")}
                     className="text-sm text-blue-400 hover:text-blue-300 flex items-center"
                     disabled={loading}
                   >
@@ -276,7 +331,7 @@ const AddVideo = () => {
                     Test Email
                   </button>
                 </div>
-                
+
                 <Controller
                   control={control}
                   name="emails"
@@ -300,11 +355,13 @@ const AddVideo = () => {
                               className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
-                          
+
                           {index === field.value.length - 1 && index < 1 ? (
                             <button
                               type="button"
-                              onClick={() => field.onChange([...field.value, { value: '' }])}
+                              onClick={() =>
+                                field.onChange([...field.value, { value: "" }])
+                              }
                               className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
                             >
                               +
@@ -328,7 +385,7 @@ const AddVideo = () => {
                   )}
                 />
               </div>
-              
+
               {/* Zalo Recipients */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -337,7 +394,7 @@ const AddVideo = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => testNotification('zalo')}
+                    onClick={() => testNotification("zalo")}
                     className="text-sm text-blue-400 hover:text-blue-300 flex items-center"
                     disabled={loading}
                   >
@@ -345,7 +402,7 @@ const AddVideo = () => {
                     Test Zalo
                   </button>
                 </div>
-                
+
                 <Controller
                   control={control}
                   name="zaloIds"
@@ -369,11 +426,13 @@ const AddVideo = () => {
                               className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
-                          
+
                           {index === field.value.length - 1 && index < 1 ? (
                             <button
                               type="button"
-                              onClick={() => field.onChange([...field.value, { value: '' }])}
+                              onClick={() =>
+                                field.onChange([...field.value, { value: "" }])
+                              }
                               className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
                             >
                               +
@@ -397,7 +456,7 @@ const AddVideo = () => {
                   )}
                 />
               </div>
-              
+
               {/* SMS Recipients */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -406,7 +465,7 @@ const AddVideo = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => testNotification('sms')}
+                    onClick={() => testNotification("sms")}
                     className="text-sm text-blue-400 hover:text-blue-300 flex items-center"
                     disabled={loading}
                   >
@@ -414,7 +473,7 @@ const AddVideo = () => {
                     Test SMS
                   </button>
                 </div>
-                
+
                 <Controller
                   control={control}
                   name="phoneNumbers"
@@ -438,11 +497,13 @@ const AddVideo = () => {
                               className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
-                          
+
                           {index === field.value.length - 1 && index < 1 ? (
                             <button
                               type="button"
-                              onClick={() => field.onChange([...field.value, { value: '' }])}
+                              onClick={() =>
+                                field.onChange([...field.value, { value: "" }])
+                              }
                               className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
                             >
                               +
@@ -468,11 +529,11 @@ const AddVideo = () => {
               </div>
             </div>
           </section>
-          
+
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
             >
               Cancel

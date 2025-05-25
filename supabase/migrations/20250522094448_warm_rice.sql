@@ -73,3 +73,13 @@ CREATE POLICY "Allow all access for authenticated users" ON notifications_log
   FOR ALL
   TO authenticated
   USING (true);
+
+  -- New
+  ALTER TABLE videos ADD COLUMN user_id UUID REFERENCES auth.users(id);
+
+-- Add user_id column to notifications_log table
+ALTER TABLE notifications_log ADD COLUMN user_id UUID REFERENCES auth.users(id);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_log_user_id ON notifications_log(user_id);

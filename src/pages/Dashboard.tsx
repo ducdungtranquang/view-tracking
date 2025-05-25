@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Trash2, ExternalLink, AlertTriangle, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config';
